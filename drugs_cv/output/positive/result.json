@@ -1,0 +1,35 @@
+{
+  "status": "POSITIVE",
+  "reason": "DELTA_E_WITHIN_POSITIVE_THRESHOLD",
+  "deltaE00": 3.528,
+  "observedLab": [
+    42.279,
+    41.156,
+    20.234
+  ],
+  "targetLab": [
+    45.0,
+    40.0,
+    24.0
+  ],
+  "observedBgrRaw": [
+    70.6,
+    75.3,
+    173.5
+  ],
+  "observedBgrCalibrated": [
+    68.8,
+    67.3,
+    166.9
+  ],
+  "blurScore": 2498.93,
+  "brightness": 219.05,
+  "markersFound": 4,
+  "artifacts": {
+    "input": "output\\positive\\01_input.jpg",
+    "aruco": "output\\positive\\02_aruco_detected.jpg",
+    "warped": "output\\positive\\03_warped.jpg",
+    "rois": "output\\positive\\04_rois.jpg",
+    "dashboard": "output\\positive\\05_analysis_dashboard.jpg"
+  }
+}

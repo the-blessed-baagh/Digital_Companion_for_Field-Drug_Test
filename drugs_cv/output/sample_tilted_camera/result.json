@@ -1,0 +1,35 @@
+{
+  "status": "POSITIVE",
+  "reason": "DELTA_E_WITHIN_POSITIVE_THRESHOLD",
+  "deltaE00": 2.838,
+  "observedLab": [
+    47.772,
+    38.297,
+    22.125
+  ],
+  "targetLab": [
+    45.0,
+    40.0,
+    24.0
+  ],
+  "observedBgrRaw": [
+    66.8,
+    72.6,
+    168.6
+  ],
+  "observedBgrCalibrated": [
+    78.3,
+    84.4,
+    179.9
+  ],
+  "blurScore": 859.4,
+  "brightness": 206.16,
+  "markersFound": 4,
+  "artifacts": {
+    "input": "output\\sample_tilted_camera\\01_input.jpg",
+    "aruco": "output\\sample_tilted_camera\\02_aruco_detected.jpg",
+    "warped": "output\\sample_tilted_camera\\03_warped.jpg",
+    "rois": "output\\sample_tilted_camera\\04_rois.jpg",
+    "dashboard": "output\\sample_tilted_camera\\05_analysis_dashboard.jpg"
+  }
+}

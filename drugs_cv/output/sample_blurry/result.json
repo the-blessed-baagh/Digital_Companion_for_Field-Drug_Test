@@ -1,0 +1,8 @@
+{
+  "status": "INCONCLUSIVE",
+  "reason": "IMAGE_QUALITY_FAIL (BLUR_DETECTED (score: 0.9 < 45.0))",
+  "deltaE00": 999.0,
+  "blurScore": 0.92,
+  "brightness": 219.07,
+  "markersFound": 0
+}
