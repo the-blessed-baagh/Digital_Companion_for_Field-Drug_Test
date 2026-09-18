@@ -1,8 +1,10 @@
 import hashlib
+import json
 import math
+from datetime import datetime, timezone
 
 from src.secure_database import save_test_result
-from src.signature import generate_key_pair, sign_record
+from src.signature import generate_key_pair, sign_record, verify_record
 from src.reference_data import get_reference
 
 
@@ -120,25 +122,49 @@ def generate_record_hash(
     quality_status,
     decision_reason,
     model_version,
-    reference_version
+    reference_version,
+    operator_id=None,
+    latitude=None,
+    longitude=None,
+    image_sha256=None,
+    timestamp_utc=None
 ):
     """
-    Generate a SHA-256 hash for a KAVACH test record.
+    Generate a deterministic SHA-256 hash for the complete
+    digital test record.
+
+    Canonical JSON is used so that another implementation,
+    such as Flutter/Dart, can reproduce the same hash using
+    the same field values and canonicalization rules.
     """
 
-    record = (
-        f"{test_id}|"
-        f"{result}|"
-        f"{confidence}|"
-        f"{measurement}|"
-        f"{quality_status}|"
-        f"{decision_reason}|"
-        f"{model_version}|"
-        f"{reference_version}"
+    record = {
+        "test_id": test_id,
+        "timestamp_utc": timestamp_utc,
+        "operator_id": operator_id,
+        "gps": {
+            "latitude": latitude,
+            "longitude": longitude
+        },
+        "result": result,
+        "confidence": confidence,
+        "measurement": measurement,
+        "quality_status": quality_status,
+        "decision_reason": decision_reason,
+        "model_version": model_version,
+        "reference_version": reference_version,
+        "image_sha256": image_sha256
+    }
+
+    canonical_record = json.dumps(
+        record,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False
     )
 
     return hashlib.sha256(
-        record.encode("utf-8")
+        canonical_record.encode("utf-8")
     ).hexdigest()
 
 
@@ -147,11 +173,16 @@ def analyze_and_save(
     measurement,
     quality_status,
     test_type="prototype_test",
-    model_version="prototype-1.0"
+    model_version="prototype-1.0",
+    operator_id=None,
+    latitude=None,
+    longitude=None,
+    image_sha256=None
 ):
     """
     Get reference data, analyze the test,
-    hash the record, sign it, and save it securely.
+    generate a timestamp, hash the complete record,
+    sign it, and save it securely.
     """
 
     reference = get_reference(test_type)
@@ -172,6 +203,10 @@ def analyze_and_save(
         quality_status
     )
 
+    # Generate the timestamp BEFORE hashing.
+    # This exact timestamp becomes part of the signed record.
+    timestamp_utc = datetime.now(timezone.utc).isoformat()
+
     record_hash = generate_record_hash(
         test_id,
         analysis["result"],
@@ -180,7 +215,12 @@ def analyze_and_save(
         quality_status,
         analysis["decision_reason"],
         model_version,
-        reference_version
+        reference_version,
+        operator_id,
+        latitude,
+        longitude,
+        image_sha256,
+        timestamp_utc
     )
 
     signing_key, _verify_key = generate_key_pair()
@@ -199,8 +239,13 @@ def analyze_and_save(
         decision_reason=analysis["decision_reason"],
         model_version=model_version,
         reference_version=reference_version,
+        image_sha256=image_sha256,
         record_hash=record_hash,
-        signature=signature
+        signature=signature,
+        operator_id=operator_id,
+        latitude=latitude,
+        longitude=longitude,
+        timestamp_utc=timestamp_utc
     )
 
     return {
@@ -208,6 +253,81 @@ def analyze_and_save(
         "test_type": test_type,
         "threshold": threshold,
         "reference_version": reference_version,
+        "timestamp_utc": timestamp_utc,
+        "operator_id": operator_id,
+        "latitude": latitude,
+        "longitude": longitude,
+        "image_sha256": image_sha256,
         "record_hash": record_hash,
         "signature": signature
     }
+def verify_record_integrity(
+    test_id,
+    result,
+    confidence,
+    measurement,
+    quality_status,
+    decision_reason,
+    model_version,
+    reference_version,
+    operator_id,
+    latitude,
+    longitude,
+    image_sha256,
+    timestamp_utc,
+    record_hash,
+    signature
+):
+    """
+    Verify the integrity and authenticity of a digital test record.
+
+    Verification has two stages:
+
+    1. Recalculate the canonical SHA-256 record hash and compare it
+       with the stored record_hash.
+    2. Verify the stored Ed25519 signature against the stored hash.
+
+    Returns True only when both checks succeed.
+    """
+
+    # Recalculate the hash from the record fields
+    recalculated_hash = generate_record_hash(
+        test_id,
+        result,
+        confidence,
+        measurement,
+        quality_status,
+        decision_reason,
+        model_version,
+        reference_version,
+        operator_id,
+        latitude,
+        longitude,
+        image_sha256,
+        timestamp_utc
+    )
+
+    # First check: record data must match the stored hash
+    if recalculated_hash != record_hash:
+        return False
+
+    # Second check: signature must match the verified record hash
+    _signing_key, verify_key = generate_key_pair()
+
+    return verify_record(
+        record_hash,
+        signature,
+        verify_key
+    )
+def calculate_image_sha256(image_bytes):
+    """
+    Calculate the SHA-256 hash of captured image bytes.
+
+    The resulting hash can be stored as image_sha256 and included
+    in the canonical test record before hashing and signing.
+    """
+
+    if not isinstance(image_bytes, bytes):
+        raise TypeError("image_bytes must be bytes")
+
+    return hashlib.sha256(image_bytes).hexdigest()
